@@ -1,6 +1,7 @@
 package org.klozevitz.multi_users_chat;
 
 import org.klozevitz.multi_users_chat.threads.ClientAcceptThread;
+import org.klozevitz.multi_users_chat.util.Message;
 
 import java.io.*;
 import java.net.InetAddress;
@@ -9,25 +10,22 @@ import java.net.Socket;
 import java.util.*;
 
 public class MultiUsersServer {
-    private final int BACKLOG = 4; // количество человек на сервере
-    private final List<Socket> users; // список подключенных клиентов
-    private final List<Thread> readingThreads; // список потоков чтения данных
+    private static final int BACKLOG = 4; // количество человек на сервере
+    private static final List<Socket> USERS = new ArrayList<>(); // список подключенных клиентов
+    private static final List<Thread> READER_THREADS = new ArrayList<>(); // список потоков чтения данных
+    private static final Queue<Message> MESSAGES = new ArrayDeque<>(); // очередь сообщений, которая будет разгребаться в отдельном потоке
     private final String host;
     private final int port;
-    private final Queue<String> messages;
 
 
     public MultiUsersServer(String host, int port) {
         this.host = host;
         this.port = port;
-        this.users = new ArrayList<>();
-        this.readingThreads = new ArrayList<>();
-        this.messages = new ArrayDeque<>();
     }
 
     public void start() {
         try (ServerSocket server = serverInit()) {
-            ClientAcceptThread acceptThread = new ClientAcceptThread(server, users, readingThreads);
+            ClientAcceptThread acceptThread = new ClientAcceptThread(server, USERS, READER_THREADS, MESSAGES);
             acceptThread.start();
 
             Thread.sleep(600_000);
@@ -82,19 +80,6 @@ public class MultiUsersServer {
         }
     }
 
-    private Scanner inInit(Socket client) {
-        try {
-            return new Scanner(
-                    new InputStreamReader(
-                            client.getInputStream()
-                    )
-            );
-        } catch (IOException e) {
-            System.out.println("ошибка инициализации потока ввода");
-            throw new RuntimeException(e);
-        }
-    }
-
     private void sendMessage() {
         Scanner sc = new Scanner(System.in);
         System.out.println();
@@ -106,17 +91,8 @@ public class MultiUsersServer {
         clientOutputStream.println(message);
     }
 
-    private String receive() {
-        try {
-//            return in.nextLine();
-            return null;
-        } catch (NoSuchElementException e) {
-            return "exit";
-        }
-    }
-
     public static void main(String[] args) {
-        MultiUsersServer server = new MultiUsersServer("25.7.187.76", 9000);
+        MultiUsersServer server = new MultiUsersServer("127.0.0.1", 9000);
         server.start();
     }
 }

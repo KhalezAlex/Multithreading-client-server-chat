@@ -1,36 +1,33 @@
-package org.klozevitz;
+package org.klozevitz.multi_users_chat;
+
+import org.klozevitz.multi_users_chat.threads.ClientAcceptThread;
 
 import java.io.*;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Scanner;
+import java.util.*;
 
 public class MultiUsersServer {
     private final int BACKLOG = 4; // количество человек на сервере
-    /**
-     * TODO избавиться от двух следующих списков и использовать только список сокетов для доступа к потока ввода и вывода
-     * */
     private final List<Socket> users; // список подключенных клиентов
-    private final List<PrintWriter> outs; // список потоков вывода подключенных клиентов
-    private final List<Scanner> ins; // список потоков ввода подключенных клиентов
+    private final List<Thread> readingThreads; // список потоков чтения данных
     private final String host;
     private final int port;
+    private final Queue<String> messages;
+
 
     public MultiUsersServer(String host, int port) {
         this.host = host;
         this.port = port;
         this.users = new ArrayList<>();
-        this.ins = new ArrayList<>();
-        this.outs = new ArrayList<>();
+        this.readingThreads = new ArrayList<>();
+        this.messages = new ArrayDeque<>();
     }
 
     public void start() {
         try (ServerSocket server = serverInit()) {
-            ClientAcceptThread acceptThread = new ClientAcceptThread(server, users);
+            ClientAcceptThread acceptThread = new ClientAcceptThread(server, users, readingThreads);
             acceptThread.start();
 
             Thread.sleep(600_000);
@@ -121,51 +118,5 @@ public class MultiUsersServer {
     public static void main(String[] args) {
         MultiUsersServer server = new MultiUsersServer("25.7.187.76", 9000);
         server.start();
-    }
-
-    class ServerOutputThread extends Thread {
-        private final PrintWriter out;
-        private final Scanner console;
-
-        public ServerOutputThread(PrintWriter out) {
-            this.out = out;
-            this.console = new Scanner(System.in);
-            setDaemon(true);
-        }
-
-        @Override
-        public void run() {
-            while (true) {
-                String message = console.nextLine();
-                out.println("SERVER> " + message);
-                if (message.equals("exit")) {
-                    break;
-                }
-            }
-            console.close();
-        }
-    }
-
-    class ClientAcceptThread extends Thread {
-        private final ServerSocket server;
-        private final List<Socket> users;
-
-        public ClientAcceptThread(ServerSocket server, List<Socket> users) {
-            this.server = server;
-            this.users = users;
-        }
-
-        @Override
-        public void run() {
-            while (true) {
-                try {
-                    Socket client = server.accept();
-                    users.add(client);
-                    System.out.println("кто-то подключился - " + users.size() + " человек в чате");
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        }
     }
 }

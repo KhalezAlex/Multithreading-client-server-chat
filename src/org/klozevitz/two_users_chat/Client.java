@@ -1,8 +1,7 @@
-package org.klozevitz;
+package org.klozevitz.two_users_chat;
 
 import java.io.*;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.Scanner;
 
 public class Client  {
